@@ -6,7 +6,7 @@ An example implementation of AWX on single node K3s using AWX Operator, with eas
 - Accessible over HTTPS from remote host
 - All data will be stored under `/data`
 - Fixed (configurable) passwords for AWX and PostgreSQL
-- Fixed (configurable) versions of AWX and PostgreSQL
+- Fixed (configurable) versions of AWX
 
 **If you want to view the guide for the specific version of AWX Operator, switch the page to the desired tag instead of the `main` branch.**
 
@@ -20,7 +20,7 @@ An example implementation of AWX on single node K3s using AWX Operator, with eas
   - [Prepare CentOS Stream 8 host](#prepare-centos-stream-8-host)
   - [Install K3s](#install-k3s)
   - [Install AWX Operator](#install-awx-operator)
-  - [Prepare required files](#prepare-required-files)
+  - [Prepare required files to deploy AWX](#prepare-required-files-to-deploy-awx)
   - [Deploy AWX](#deploy-awx)
 - [Back up and Restore AWX using AWX Operator](#back-up-and-restore-awx-using-awx-operator)
 - [Additional Guides](#additional-guides)
@@ -29,17 +29,17 @@ An example implementation of AWX on single node K3s using AWX Operator, with eas
 
 - Tested on:
   - CentOS Stream 8 (Minimal)
-  - K3s v1.25.7+k3s1
+  - K3s v1.28.4+k3s2
 - Products that will be deployed:
-  - AWX Operator 1.4.0
-  - AWX 21.14.0
+  - AWX Operator 2.9.0
+  - AWX 23.5.1
   - PostgreSQL 13
 
 ## References
 
 - [K3s - Lightweight Kubernetes](https://docs.k3s.io/)
-- [INSTALL.md on ansible/awx](https://github.com/ansible/awx/blob/21.14.0/INSTALL.md) @21.14.0
-- [README.md on ansible/awx-operator](https://github.com/ansible/awx-operator/blob/1.4.0/README.md) @1.4.0
+- [INSTALL.md on ansible/awx](https://github.com/ansible/awx/blob/23.5.1/INSTALL.md) @23.5.1
+- [README.md on ansible/awx-operator](https://github.com/ansible/awx-operator/blob/2.9.0/README.md) @2.9.0
 
 ## Requirements
 
@@ -71,36 +71,37 @@ sudo reboot
 Install required packages to deploy AWX Operator and AWX.
 
 ```bash
-sudo dnf install -y git make curl
+sudo dnf install -y git curl
 ```
 
 ### Install K3s
 
-Install K3s with `--write-kubeconfig-mode 644` to make config file (`/etc/rancher/k3s/k3s.yaml`) readable by non-root user.
+Install specific version of K3s with `--write-kubeconfig-mode 644` to make config file (`/etc/rancher/k3s/k3s.yaml`) readable by non-root user.
 
 ```bash
-curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.28.4+k3s2 sh -s - --write-kubeconfig-mode 644
 ```
 
 ### Install AWX Operator
 
-Install specified version of AWX Operator. Note that this procedure is applicable only for AWX Operator `0.14.0` or later. If you want to deploy `0.13.0` or earlier version of AWX Operator, refer [📝Tips: Deploy older version of AWX Operator](tips/deploy-older-operator.md).
+Clone this repository and change directory.
+
+If you want to use files suitable for the specific version of AWX Operator, [refer tags in this repository](https://github.com/kurokobo/awx-on-k3s/tags) and specify desired tag in `git checkout`. Especially for `0.13.0` or earlier version of AWX Operator, refer to [📝Tips: Deploy older version of AWX Operator](tips/deploy-older-operator.md).
 
 ```bash
 cd ~
-git clone https://github.com/ansible/awx-operator.git
-cd awx-operator
-git checkout 1.4.0
+git clone https://github.com/kurokobo/awx-on-k3s.git
+cd awx-on-k3s
+git checkout 2.9.0
 ```
 
-Export the name of the namespace where you want to deploy AWX Operator as the environment variable `NAMESPACE` and run `make deploy`. The default namespace is `awx`.
+Then invoke `kubectl apply -k operator` to deploy AWX Operator.
 
 ```bash
-export NAMESPACE=awx
-make deploy
+kubectl apply -k operator
 ```
 
-The AWX Operator will be deployed to the namespace you specified.
+The AWX Operator will be deployed to the namespace `awx`.
 
 ```bash
 $ kubectl -n awx get all
@@ -117,18 +118,7 @@ NAME                                                         DESIRED   CURRENT  
 replicaset.apps/awx-operator-controller-manager-68d787cfbd   1         1         1       16s
 ```
 
-### Prepare required files
-
-Clone this repository and change directory.
-
-If you want to use files suitable for the specific version of AWX Operator, [refer tags in this repository](https://github.com/kurokobo/awx-on-k3s/tags) and specify desired tag in `git checkout`.
-
-```bash
-cd ~
-git clone https://github.com/kurokobo/awx-on-k3s.git
-cd awx-on-k3s
-git checkout 1.4.0
-```
+### Prepare required files to deploy AWX
 
 Generate a Self-Signed certificate. Note that IP address can't be specified. If you want to use a certificate from public ACME CA such as Let's Encrypt or ZeroSSL instead of Self-Signed certificate, follow the guide on [📁 **Use SSL Certificate from Public ACME CA**](acme) first and come back to this step when done.
 
@@ -200,7 +190,7 @@ $ kubectl -n awx logs -f deployments/awx-operator-controller-manager
 ...
 ----- Ansible Task Status Event StdOut (awx.ansible.com/v1beta1, Kind=AWX, awx/awx) -----
 PLAY RECAP *********************************************************************
-localhost                  : ok=80   changed=0    unreachable=0    failed=0    skipped=78   rescued=0    ignored=1
+localhost                  : ok=84   changed=0    unreachable=0    failed=0    skipped=79   rescued=0    ignored=1
 ```
 
 Required objects has been deployed next to AWX Operator in `awx` namespace.
@@ -208,49 +198,52 @@ Required objects has been deployed next to AWX Operator in `awx` namespace.
 ```bash
 $ kubectl -n awx get awx,all,ingress,secrets
 NAME                      AGE
-awx.awx.ansible.com/awx   5m
+awx.awx.ansible.com/awx   6m15s
 
 NAME                                                   READY   STATUS    RESTARTS   AGE
-pod/awx-operator-controller-manager-5d5d58758c-7xcrl   2/2     Running   0          5m35s
-pod/awx-postgres-13-0                                  1/1     Running   0          4m46s
-pod/awx-5b859c644-zp6x5                                4/4     Running   0          4m26s
+pod/awx-operator-controller-manager-57867569c4-ggl29   2/2     Running   0          6m50s
+pod/awx-postgres-13-0                                  1/1     Running   0          5m56s
+pod/awx-task-5d8cd9b6b9-8ptjt                          4/4     Running   0          5m25s
+pod/awx-web-66f89bc9cf-6zck5                           3/3     Running   0          4m39s
 
 NAME                                                      TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
-service/awx-operator-controller-manager-metrics-service   ClusterIP   10.43.229.20    <none>        8443/TCP   5m45s
-service/awx-postgres-13                                   ClusterIP   None            <none>        5432/TCP   4m46s
-service/awx-service                                       ClusterIP   10.43.135.205   <none>        80/TCP     4m28s
+service/awx-operator-controller-manager-metrics-service   ClusterIP   10.43.18.30     <none>        8443/TCP   7m
+service/awx-postgres-13                                   ClusterIP   None            <none>        5432/TCP   5m55s
+service/awx-service                                       ClusterIP   10.43.237.218   <none>        80/TCP     5m28s
 
 NAME                                              READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/awx-operator-controller-manager   1/1     1            1           5m45s
-deployment.apps/awx                               1/1     1            1           4m26s
+deployment.apps/awx-operator-controller-manager   1/1     1            1           7m
+deployment.apps/awx-task                          1/1     1            1           5m25s
+deployment.apps/awx-web                           1/1     1            1           4m39s
 
 NAME                                                         DESIRED   CURRENT   READY   AGE
-replicaset.apps/awx-operator-controller-manager-5d5d58758c   1         1         1       5m35s
-replicaset.apps/awx-5b859c644                                1         1         1       4m26s
+replicaset.apps/awx-operator-controller-manager-57867569c4   1         1         1       6m50s
+replicaset.apps/awx-task-5d8cd9b6b9                          1         1         1       5m25s
+replicaset.apps/awx-web-66f89bc9cf                           1         1         1       4m39s
 
 NAME                               READY   AGE
-statefulset.apps/awx-postgres-13   1/1     4m46s
+statefulset.apps/awx-postgres-13   1/1     5m56s
 
-NAME                                    CLASS    HOSTS             ADDRESS         PORTS     AGE
-ingress.networking.k8s.io/awx-ingress   <none>   awx.example.com   192.168.0.219   80, 443   4m27s
+NAME                                    CLASS     HOSTS             ADDRESS         PORTS     AGE
+ingress.networking.k8s.io/awx-ingress   traefik   awx.example.com   192.168.0.219   80, 443   5m27s
 
 NAME                                  TYPE                DATA   AGE
-secret/awx-admin-password             Opaque              1      5m
-secret/awx-postgres-configuration     Opaque              6      5m
-secret/awx-secret-tls                 kubernetes.io/tls   2      3m54s
-secret/redhat-operators-pull-secret   Opaque              1      4m30s
-secret/awx-app-credentials            Opaque              3      4m30s
-secret/awx-secret-key                 Opaque              1      4m55s
-secret/awx-broadcast-websocket        Opaque              1      4m52s
-secret/awx-receptor-ca                Opaque              2      4m26s
-secret/awx-receptor-work-signing      Opaque              2      4m29s
+secret/redhat-operators-pull-secret   Opaque              1      7m11s
+secret/awx-admin-password             Opaque              1      6m15s
+secret/awx-postgres-configuration     Opaque              6      6m15s
+secret/awx-secret-tls                 kubernetes.io/tls   2      6m15s
+secret/awx-app-credentials            Opaque              3      5m30s
+secret/awx-secret-key                 Opaque              1      6m6s
+secret/awx-broadcast-websocket        Opaque              1      6m2s
+secret/awx-receptor-ca                kubernetes.io/tls   2      5m37s
+secret/awx-receptor-work-signing      Opaque              2      5m33s
 ```
 
 Now your AWX is available at `https://awx.example.com/` or the hostname you specified.
 
 Note that you have to access via hostname that you specified in `base/awx.yaml`, instead of IP address, since this guide uses Ingress. So you should configure your DNS or `hosts` file on your client where the browser is running.
 
-At this point, AWX can be accessed via HTTP as well as HTTPS. If you want to redirect HTTP to HTTPS, see [📝Tips: Redirect HTTP to HTTPS](tips/https-redirection.md).
+At this point, AWX can be accessed via HTTP as well as HTTPS. If you want to force users to use HTTPS, see [📝Tips: Enable HTTP Strict Transport Security (HSTS)](tips/enable-hsts.md).
 
 ## Back up and Restore AWX using AWX Operator
 
@@ -272,6 +265,9 @@ Refer [📁 **Back up AWX using AWX Operator**](backup) and [📁 **Restore AWX 
 - [📁 **Deploy Private Container Registry on Kubernetes**](registry)
   - The guide to use Execution Environments in AWX (AWX-EE).
   - If we want to use our own Execution Environment built with Ansible Builder and don't want to push it to the public container registry e.g. Docker Hub, we can deploy a private container registry on K3s.
+- [📁 **Integrate AWX with EDA Controller** (Experimental)](rulebooks)
+  - The guide to deploy and use Event Driven Ansible Controller (EDA Controller) with AWX on K3s.
+  - **Note that EDA Controller Operator that used in this guide is not a fully supported installation method for EDA Controller.**
 - [📁 **Deploy Private Galaxy NG on Docker or Kubernetes** (Experimental)](galaxy)
   - The guide to deploy our own Galaxy NG instance.
   - **Note that the containerized implementation of Galaxy NG is not officially supported at this time.**
@@ -287,13 +283,13 @@ Refer [📁 **Back up AWX using AWX Operator**](backup) and [📁 **Restore AWX 
   - [📝Deploy AWX using external PostgreSQL database](tips/external-db.md)
   - [📝Trust custom Certificate Authority](tips/trust-custom-ca.md)
   - [📝Expose `/etc/hosts` to Pods on K3s](tips/expose-hosts.md)
-  - [📝Redirect HTTP to HTTPS](tips/https-redirection.md)
+  - [📝Enable HTTP Strict Transport Security (HSTS)](tips/enable-hsts.md)
   - [📝Use HTTP proxy](tips/use-http-proxy.md)
   - [📝Uninstall deployed resources](tips/uninstall.md)
   - [📝Deploy older version of AWX Operator](tips/deploy-older-operator.md)
   - [📝Upgrade AWX Operator and AWX](tips/upgrade-operator.md)
   - [📝Workaround for the rate limit on Docker Hub](tips/dockerhub-rate-limit.md)
-  - [📝Version Mapping between AWX Operator and AWX](tips/version-mapping.md)
+  - [📝Version Mapping for AWX Operator and AWX](tips/version-mapping.md)
   - [📝Use Kerberos authentication to connect to Windows hosts](tips/use-kerberos.md)
   - [📝Use Helm or Operator Lifecycle Manager to manage AWX Operator and AWX](tips/alternative-methods.md)
   - [📝Troubleshooting Guide](tips/troubleshooting.md)

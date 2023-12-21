@@ -1,15 +1,32 @@
 <!-- omit in toc -->
-# Version Mapping between AWX Operator and AWX
+# Version Mapping for AWX Operator and AWX
 
-- [Default version mapping between AWX Operator and AWX](#default-version-mapping-between-awx-operator-and-awx)
+- [Default version mapping for AWX Operator and AWX](#default-version-mapping-for-awx-operator-and-awx)
 - [Appendix: Gather bundled AWX version from AWX Operator](#appendix-gather-bundled-awx-version-from-awx-operator)
 
-## Default version mapping between AWX Operator and AWX
+## Default version mapping for AWX Operator and AWX
 
 The table below maps the AWX Operator versions and bundled AWX versions.
 
 | AWX Operator | AWX |
 | - | - |
+| 2.9.0 | 23.5.1 |
+| 2.8.0 | 23.5.0 |
+| 2.7.2 | 23.4.0 |
+| 2.7.1 | 23.3.1 |
+| 2.7.0 | 23.3.0 |
+| 2.6.0 | 23.2.0 |
+| 2.5.3 | 23.1.0 |
+| 2.5.2 | 23.0.0 |
+| 2.5.1 | 22.7.0 |
+| 2.5.0 | 22.6.0 |
+| 2.4.0 | 22.5.0 |
+| 2.3.0 | 22.4.0 |
+| 2.2.1 | 22.3.0 |
+| 2.2.0 | 22.3.0 |
+| 2.1.0 | 22.2.0 |
+| 2.0.1 | 22.1.0 |
+| 2.0.0 | 22.0.0 |
 | 1.4.0 | 21.14.0 |
 | 1.3.0 | 21.13.0 |
 | 1.2.0 | 21.12.0 |
@@ -48,7 +65,7 @@ The table below maps the AWX Operator versions and bundled AWX versions.
 | 0.7.0 | 18.0.0 |
 | 0.6.0 | 15.0.0 |
 
-In the current version of AWX Operator, [there is `image_version` parameter for AWX resource to change which image will be used](https://github.com/ansible/awx-operator#deploying-a-specific-version-of-awx), but it appears that using a version of AWX other than the one bundled with the AWX Operator [is currently not supported](https://github.com/ansible/awx-operator#deploying-a-specific-version-of-awx).
+In the current version of AWX Operator, [there is `image_version` parameter for AWX resource to change which image will be used](https://ansible.readthedocs.io/projects/awx-operator/en/latest/user-guide/advanced-configuration/deploying-a-specific-version-of-awx.html), but it appears that using a version of AWX other than the one bundled with the AWX Operator [is currently not supported](https://ansible.readthedocs.io/projects/awx-operator/en/latest/user-guide/advanced-configuration/deploying-a-specific-version-of-awx.html).
 
 ## Appendix: Gather bundled AWX version from AWX Operator
 

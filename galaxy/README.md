@@ -189,7 +189,7 @@ There is a Kubernetes Operator for Pulp 3 named Pulp Operator.
 
 - [pulp/pulp-operator: Kubernetes Operator for Pulp 3](https://github.com/pulp/pulp-operator)
 
-This project is in alpha stage and under active development. In this guide, we use [Pulp Operator 1.0.0-alpha.5](https://github.com/pulp/pulp-operator/tree/1.0.0-alpha.5).
+This project is in alpha stage and under active development. In this guide, we use [Pulp Operator 1.0.0-beta.3](https://github.com/pulp/pulp-operator/tree/1.0.0-beta.3).
 
 ### Install Pulp Operator
 
@@ -199,7 +199,7 @@ Install specified version of Pulp Operator.
 cd ~
 git clone https://github.com/pulp/pulp-operator.git
 cd pulp-operator
-git checkout 1.0.0-alpha.5
+git checkout 1.0.0-beta.3
 ```
 
 Export the name of the namespace where you want to deploy Pulp Operator as the environment variable `NAMESPACE` and run `make deploy`. The default namespace is `pulp-operator-system`. Note that `make deploy` requires `go` binary by default but you can remove this dependency by small `sed` patch.
@@ -244,7 +244,7 @@ GALAXY_HOST="galaxy.example.com"
 openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -out ./pulp/tls.crt -keyout ./pulp/tls.key -subj "/CN=${GALAXY_HOST}/O=${GALAXY_HOST}" -addext "subjectAltName = DNS:${GALAXY_HOST}"
 ```
 
-Modify `ingress_host` in `pulp/galaxy.yaml`.
+Modify `ingress_host` and `CSRF_TRUSTED_ORIGINS` in `pulp/galaxy.yaml`.
 
 ```yaml
 ...
@@ -254,6 +254,11 @@ spec:
   ingress_class_name: traefik
   ingress_tls_secret: galaxy-secret-tls
   ingress_host: galaxy.example.com     👈👈👈
+  ...
+  pulp_settings:
+    ...
+    CSRF_TRUSTED_ORIGINS:
+      - https://galaxy.example.com     👈👈👈
 ...
 ```
 
@@ -308,8 +313,8 @@ When the deployment completes successfully, the logs end with:
 ```txt
 $ kubectl -n galaxy logs -f deployments/pulp-operator-controller-manager
 ...
-2006-01-02T15:04:05Z    INFO    repo_manager/status.go:146      galaxy operator finished execution ...
-2006-01-02T15:04:05Z    INFO    repo_manager/controller.go:320  Operator tasks synced
+2006-01-02T15:04:05Z    INFO    repo_manager/status.go:148      galaxy finished execution ...
+2006-01-02T15:04:05Z    INFO    repo_manager/controller.go:129  Operator tasks synced
 ```
 
 Required objects has been deployed next to Pulp Operator in `galaxy` namespace.
@@ -317,62 +322,68 @@ Required objects has been deployed next to Pulp Operator in `galaxy` namespace.
 ```bash
 $ kubectl -n galaxy get pulp,all,ingress,secrets
 NAME                                       AGE
-pulp.repo-manager.pulpproject.org/galaxy   3m22s
+pulp.repo-manager.pulpproject.org/galaxy   3m15s
 
-NAME                                                    READY   STATUS    RESTARTS   AGE
-pod/pulp-operator-controller-manager-66445f9d88-w6qjv   2/2     Running   0          5m34s
-pod/galaxy-redis-84c95d97f8-86hkk                       1/1     Running   0          3m22s
-pod/galaxy-database-0                                   1/1     Running   0          3m22s
-pod/galaxy-worker-588c5f4df4-k255c                      1/1     Running   0          3m16s
-pod/galaxy-api-6b86d65586-7rx79                         1/1     Running   0          3m17s
-pod/galaxy-content-7cf7cf49f6-tqqbl                     1/1     Running   0          3m17s
-pod/galaxy-web-546fbf459-cmn9v                          1/1     Running   0          2m44s
+NAME                                                    READY   STATUS      RESTARTS   AGE
+pod/pulp-operator-controller-manager-74f74c5846-kcnvx   2/2     Running     0          3m29s
+pod/galaxy-redis-56445fcbbb-hxdq9                       1/1     Running     0          3m15s
+pod/galaxy-database-0                                   1/1     Running     0          3m15s
+pod/galaxy-pulpcore-migration-dcmhw-tjnxq               0/1     Completed   0          3m4s
+pod/galaxy-reset-admin-password-pb5mv-s2nm6             0/1     Completed   0          3m4s
+pod/galaxy-api-5bbf4c58cd-kzdgg                         1/1     Running     0          3m4s
+pod/galaxy-content-59bbb99578-d87zz                     1/1     Running     0          3m4s
+pod/galaxy-worker-66dd884cfb-v7r9z                      1/1     Running     0          3m4s
+pod/galaxy-web-5bfcd9c5f9-xfgcv                         1/1     Running     0          2m24s
 
 NAME                                                       TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)     AGE
-service/pulp-operator-controller-manager-metrics-service   ClusterIP   10.43.22.172    <none>        8443/TCP    5m34s
-service/galaxy-database-svc                                ClusterIP   None            <none>        5432/TCP    3m22s
-service/galaxy-redis-svc                                   ClusterIP   10.43.196.8     <none>        6379/TCP    3m22s
-service/galaxy-api-svc                                     ClusterIP   10.43.65.203    <none>        24817/TCP   3m17s
-service/galaxy-content-svc                                 ClusterIP   10.43.226.206   <none>        24816/TCP   3m16s
-service/galaxy-web-svc                                     ClusterIP   10.43.7.188     <none>        24880/TCP   2m43s
+service/pulp-operator-controller-manager-metrics-service   ClusterIP   10.43.168.53    <none>        8443/TCP    3m29s
+service/galaxy-database-svc                                ClusterIP   None            <none>        5432/TCP    3m15s
+service/galaxy-redis-svc                                   ClusterIP   10.43.192.108   <none>        6379/TCP    3m15s
+service/galaxy-api-svc                                     ClusterIP   10.43.90.155    <none>        24817/TCP   3m4s
+service/galaxy-content-svc                                 ClusterIP   10.43.240.255   <none>        24816/TCP   3m4s
+service/galaxy-web-svc                                     ClusterIP   10.43.60.255    <none>        24880/TCP   2m23s
 
 NAME                                               READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/pulp-operator-controller-manager   1/1     1            1           5m34s
-deployment.apps/galaxy-redis                       1/1     1            1           3m22s
-deployment.apps/galaxy-worker                      1/1     1            1           3m16s
-deployment.apps/galaxy-api                         1/1     1            1           3m17s
-deployment.apps/galaxy-content                     1/1     1            1           3m17s
-deployment.apps/galaxy-web                         1/1     1            1           2m44s
+deployment.apps/pulp-operator-controller-manager   1/1     1            1           3m29s
+deployment.apps/galaxy-redis                       1/1     1            1           3m15s
+deployment.apps/galaxy-content                     1/1     1            1           3m4s
+deployment.apps/galaxy-api                         1/1     1            1           3m4s
+deployment.apps/galaxy-worker                      1/1     1            1           3m4s
+deployment.apps/galaxy-web                         1/1     1            1           2m24s
 
 NAME                                                          DESIRED   CURRENT   READY   AGE
-replicaset.apps/pulp-operator-controller-manager-66445f9d88   1         1         1       5m34s
-replicaset.apps/galaxy-redis-84c95d97f8                       1         1         1       3m22s
-replicaset.apps/galaxy-worker-588c5f4df4                      1         1         1       3m16s
-replicaset.apps/galaxy-api-6b86d65586                         1         1         1       3m17s
-replicaset.apps/galaxy-content-7cf7cf49f6                     1         1         1       3m17s
-replicaset.apps/galaxy-web-546fbf459                          1         1         1       2m44s
+replicaset.apps/pulp-operator-controller-manager-74f74c5846   1         1         1       3m29s
+replicaset.apps/galaxy-redis-56445fcbbb                       1         1         1       3m15s
+replicaset.apps/galaxy-api-5bbf4c58cd                         1         1         1       3m4s
+replicaset.apps/galaxy-content-59bbb99578                     1         1         1       3m4s
+replicaset.apps/galaxy-worker-66dd884cfb                      1         1         1       3m4s
+replicaset.apps/galaxy-web-5bfcd9c5f9                         1         1         1       2m24s
 
 NAME                               READY   AGE
-statefulset.apps/galaxy-database   1/1     3m22s
+statefulset.apps/galaxy-database   1/1     3m15s
 
-NAME                               CLASS    HOSTS                ADDRESS         PORTS     AGE
-ingress.networking.k8s.io/galaxy   <none>   galaxy.example.com   192.168.0.219   80, 443   2m45s
+NAME                                          COMPLETIONS   DURATION   AGE
+job.batch/galaxy-pulpcore-migration-dcmhw     1/1           31s        3m4s
+job.batch/galaxy-reset-admin-password-pb5mv   1/1           35s        3m4s
+
+NAME                               CLASS     HOSTS                ADDRESS         PORTS     AGE
+ingress.networking.k8s.io/galaxy   traefik   galaxy.example.com   192.168.0.219   80, 443   2m20s
 
 NAME                                   TYPE                DATA   AGE
-secret/galaxy-admin-password           Opaque              1      3m22s
-secret/galaxy-postgres-configuration   Opaque              7      3m22s
-secret/galaxy-secret-tls               kubernetes.io/tls   2      3m22s
-secret/redhat-operators-pull-secret    Opaque              1      3m22s
-secret/galaxy-server                   Opaque              1      3m22s
-secret/galaxy-db-fields-encryption     Opaque              1      3m22s
-secret/galaxy-container-auth           Opaque              2      3m22s
+secret/galaxy-postgres-configuration   Opaque              7      3m15s
+secret/galaxy-secret-tls               kubernetes.io/tls   2      3m15s
+secret/galaxy-secret-key               Opaque              1      3m15s
+secret/galaxy-server                   Opaque              1      3m15s
+secret/galaxy-db-fields-encryption     Opaque              1      3m15s
+secret/galaxy-container-auth           Opaque              2      3m15s
+secret/galaxy-admin-password           Opaque              1      3m15s
 ```
 
 Now your AWX is available at `https://galaxy.example.com/` or the hostname you specified. You can log in to the GUI by user `admin` with password you specified in `pulp/kustomization.yaml`.
 
 ## Configuration and Usage
 
-Basic configuration and usage of Galaxy NG.
+Basic configuration and usage of Galaxy NG. Following section is based on Galaxy NG 4.9.
 
 ### Sync Collections with Public Galaxy
 
@@ -383,24 +394,26 @@ Create a list of Collections to be synchronized as YAML file.
 collections:
   - name: community.general
     source: https://galaxy.ansible.com
-    version: ">=3.2.0"
-  - name: community.kubernetes
+    version: ">=8.0.0"
+  - name: kubernetes.core
     source: https://galaxy.ansible.com
-    version: "2.0.0"
+    version: "3.0.0"
   - name: community.vmware
     source: https://galaxy.ansible.com
-    version: ">=1.10.0,<1.12.0"
+    version: ">=3.10.0,<4.0.0"
   - name: awx.awx
     source: https://galaxy.ansible.com
-    version: ">=19.0.0"
+    version: ">=23.0.0"
   - name: ansible.utils
     source: https://galaxy.ansible.com
-    version: ">=2.1.0"
+    version: ">=2.12.0"
 ```
 
-In Galaxy NG, open `Collections` > `Repository Management` > `Remote` and click `Configure` on `community`.
+In Galaxy NG, open `Collections` > `Remotes` > `community` and click `Edit`.
 
-Select your YAML file in `YAML requirements` and `Save`, then `Sync` and wait to complete.
+Upload your YAML file in `YAML requirements` and `Save`.
+
+Open `Collections` > `Repositories` > `community` > `Sync`, then `Sync` and wait to complete.
 
 ### Publish Your Own Collections to Galaxy NG
 
@@ -472,34 +485,34 @@ ansible-galaxy collection build
 
 Then create `demo` namespace on Galaxy NG, and publish your collection.
 
-Note that you can get appropriate URL for `--server` from `Collections` > `Namespaces` > `View collections` > `CLI Configuration` per collections. Your token is available at `Collections` > `API token management` > `Load token`.
+Note that you can get appropriate URL for `--server` from `Collections` > `Namespaces` > `View collections` for `demo` namespace > `CLI configuration` per collections. Your token is available at `Collections` > `API token` > `Load token`.
 
 ```bash
 ansible-galaxy collection publish \
   demo-collection-1.0.0.tar.gz \
-  --server https://galaxy.example.com/api/galaxy/content/inbound-demo/ \
+  --server https://galaxy.example.com/api/galaxy/ \
   --token d926e******************************3e996 \
   -c
 ```
 
-Once the command succeeded, your collection is stayed at `staging` distribution. Approval by super user on `Collections` > `Approval` page is required to move your collection to `published` distribution.
+Once the command succeeded, your collection is stayed at `staging` repository. Approval by super user on `Collections` > `Approval` page is required to move your collection to `published` repository.
 
 Optionally, this approval process can be disabled by adding `galaxy_require_content_approval: "False"` in your `settings.py`.
 
 ### Install Collections Locally from Galaxy NG
 
-Modify your `ansible.cfg` to specify which Galaxy Instance will be used in which order. Note that you can get appropriate configuration from `Collections` > `Repository Management` > `Local` > `CLI configuration` per distributions. Your token is available at `Collections` > `API Token`.
+Modify your `ansible.cfg` to specify which Galaxy Instance will be used in which order. Note that you can get appropriate configuration from `Collections` > `Repositories` > repository name (`community` or `published` for example) > `Copy CLI configuration` per repositories. Your token is available at `Collections` > `API token`.
 
 ```init
 [galaxy]
 server_list = published_repo, community_repo
 
 [galaxy_server.published_repo]
-url=https://galaxy.example.com/api/galaxy/content/published/
+url=https://galaxy.example.com/api/galaxy/
 token=d926e******************************3e996
 
 [galaxy_server.community_repo]
-url=https://galaxy.example.com/api/galaxy/content/community/
+url=https://galaxy.example.com/api/galaxy/
 token=d926e******************************3e996
 ```
 
@@ -544,8 +557,8 @@ Then simply `login`, `tag` and `push`.
 
 ```bash
 docker login galaxy.example.com
-docker tag registry.example.com/ansible/ee:2.12-custom galaxy.example.com/demo/ee:2.12-custom
-docker push galaxy.example.com/demo/ee:2.12-custom
+docker tag registry.example.com/ansible/ee:2.15-custom galaxy.example.com/demo/ee:2.15-custom
+docker push galaxy.example.com/demo/ee:2.15-custom
 ```
 
 ## Use with AWX
@@ -558,12 +571,12 @@ To use your Collections on your Galaxy NG through AWX, some tasks are required b
 
 1. Store your **Token** and **URL** for specific **Organization** in AWX
    - Add credential with type `Ansible Galaxy/Automation Hub API Token` with your Token and Galaxy Server URL.
-   - You can get appropriate URL from `Collections` > `Repository Management` > `Local` > `CLI configuration` per distributions on Galaxy NG.
-   - Your token is available at `Collections` > `API Token` on Galaxy NG.
-1. Enable your credential in **Organization**
+   - You can get appropriate URL from `Collections` > `Repositories` > repository name (`community` or `published` for example) > `Copy CLI configuration` on Galaxy NG.
+   - Your token is available at `Collections` > `API token` on Galaxy NG.
+2. Enable your credential in **Organization**
    - In `Edit` screen for `Organization` that will use your Galaxy NG, enable your credential in `Galaxy Credentials`.
    - You can change the order of credentials to set precedence for the sync and lookup of the content.
-1. Ignore SSL Certificate Verification
+3. Ignore SSL Certificate Verification
    - Enable `Ignore Ansible Galaxy SSL Certificate Verification` in `Settings` > `Jobs` > `Jobs settings`
 
 Then create files to test collection.
